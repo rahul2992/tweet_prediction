@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.stats import expon
+from operator import itemgetter
 
 def load_train():
 	file = "new_gruber_tweets.json"
@@ -62,15 +63,58 @@ if __name__ == '__main__':
 	
 	timedata = []
 	div = 10
-	i = 1
-	for t in time_df:
+	for t in time_dif:
 		elapsed = np.arange(0, t, div)
-		
 		for t_elaps in elapsed:
 			waiting = t - t_elaps
 			t_sign = [t_elaps, waiting]
 			timedata.append(t_sign)
-	print timedata		
+	timedata = sorted(timedata, key = itemgetter(0)) 
+	
+	t_0,t_10,t_20,t_30,t_40,t_50,t_60,t_70,t_80,t_90,t_100 = ([] for i in range(11))
+	for t in timedata:
+		if (t[0] == 0):
+			t_0.append(t[1])
+		elif (t[0] == 10):
+			t_10.append(t[1])
+		elif (t[0] == 20):
+			t_20.append(t[1])
+		elif (t[0] == 30):
+			t_30.append(t[1])	
+		elif (t[0] == 40):
+			t_40.append(t[1])	
+		elif (t[0] == 50):
+			t_50.append(t[1])	
+		elif (t[0] == 60):
+			t_60.append(t[1])	
+		elif (t[0] == 70):
+			t_70.append(t[1])	
+		elif (t[0] == 80):
+			t_80.append(t[1])	
+		elif (t[0] == 90):
+			t_90.append(t[1])
+		elif (t[0] == 100):
+			t_100.append(t[1])		
+
+	t_0_100 = [t_10, t_20, t_30, t_40, t_50, t_60, t_70, t_80, t_90, t_100]
+	#print t_0_100
+	t_std = []
+	t_mean = []
+	t_div = np.arange(0, 100, 10)
+	for t in t_0_100:
+		t_std.append(np.std(t))
+		t_mean.append(np.mean(t))
+
+	t_std = pd.Series(t_std)
+	t_mean = pd.Series(t_mean)
+	t_div = pd.Series(t_div)
+	
+	t_comb = pd.concat([t_div, t_mean, t_std], axis = 1)
+	t_comb.columns = [ 'elapsed', 'mean', 'standard_dev']
+	print t_comb
+	
+	
+			
 	
 			
 	
