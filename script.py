@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.stats import expon
 from operator import itemgetter
+import math
 
 def load_train(file):
 	tweetdata = pd.read_json(file)
@@ -168,23 +169,28 @@ if __name__ == '__main__':
 			for mention in tmp:
 				if (mention['name'] == 'John Gruber'):
 					siracusaMentions.append(tmp_time)
-
 	tdist_arment = []
 	tdist_siracusa = []
 	mention_dist = []
 					
 	for time in tweetdata['created_at']:
 		tdist_arment[:] = [men_t - time for men_t in armentMentions]
+		tdist_arment = map(abs, tdist_arment)
 		tmin_a = min(tdist_arment)
 		tdist_siracusa[:] = [men_t - time for men_t in siracusaMentions]
+		tdist_siracusa = map(abs, tdist_siracusa)
 		tmin_s = min(tdist_siracusa)
+		
 		
 		if (tmin_a < tmin_s):
 			mention_dist.append((tmin_a, 'arment'))
 			
 		elif (tmin_a > tmin_s):
 			mention_dist.append((tmin_s, 'siracusa'))
-				
+	
+	mention_dist = pd.DataFrame(mention_dist, columns = ['distance', 'person'])
+	mention_name = []
+	mention_d = []
 	tweet_len = []
 	t_elaps = []
 	y = []
@@ -198,6 +204,8 @@ if __name__ == '__main__':
 	for i in xrange(0, num_tweets - 1):
 		tweet_tm = time_df.iloc[i]
 		tweet_ln_temp = tweet_ln.iloc[i]
+		mention_d_temp = mention_dist['distance'].iloc[i]
+		mention_p_temp = mention_dist['person'].iloc[i]
 		t_elapsedlist = np.arange(0, tweet_tm, div)
 		for t in t_elapsedlist:
 			#Add feature 1 - elapsed time
@@ -207,12 +215,16 @@ if __name__ == '__main__':
 			tweet_len.append(tweet_ln_temp)
 			
 			#Add feature 3 - Last mention person
+			mention_name.append(mention_p_temp)
 			
 			#Add feature 4 - Last mention time
+			mention_d.append(mention_d_temp)
 			
 			#Add label
 			y_temp = tweet_tm - t
 			y.append(y_temp)
+			
+			
 						
 	 
 		
