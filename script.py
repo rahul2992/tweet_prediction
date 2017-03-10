@@ -40,8 +40,11 @@ def error_func(fitParams, division, time_dif):
 	return exp_diff, exp_diff_df
 	
 def tweet_length(tweetdata):
-	tweet_length = len(tweetdata['text'])
-	return tweet_length
+	tweet_ln = []
+	for tweet in tweetdata['text']:
+		length = len(tweet)
+		tweet_ln.append(length)
+	return tweet_ln
 	
 def split_intertweet(time_df, div):
 	timedata = []
@@ -145,8 +148,10 @@ if __name__ == '__main__':
 	div = 10
 	i = 0
 	
-	tweet_length = tweet_length(tweetdata)
-	tweet_length = pd.Series(data = tweet_length)
+	tweet_ln = tweet_length(tweetdata)
+	tweet_ln = pd.Series(data = tweet_ln)
+
+	
 	
 	tweet_len = []
 	t_elaps = []
@@ -154,16 +159,21 @@ if __name__ == '__main__':
 
 	#print time_df.size
 	#print tweetdata['created_at'].size
-	iterlength = len(tweetdata)
-	for i in range(0, iterlength - 1):
-		t_elapsedlist = np.arange(0, time_df.iloc[i], div)
+	num_tweets = len(tweetdata)
+	#print num_tweets
+	#print time_df.size
+	for i in xrange(0, num_tweets - 1):
+		tweet_tm = time_df.iloc[i]
+		tweet_ln_temp = tweet_ln.iloc[i]
+		t_elapsedlist = np.arange(0, tweet_tm, div)
 		for t in t_elapsedlist:
 			#Add feature 1 - elapsed time
 			t_elaps.append(t)
 	#		#Add feature 2 - Length of last tweet
+			tweet_len.append(tweet_ln_temp)
 	#		#Add label
-	#		y_temp = time_df.iloc[i] - t_elaps
-	#		y.append(y_temp)
+			y_temp = tweet_tm - t
+			y.append(y_temp)
 			
 	#		tweet_len.append(tweetdata['tweet_length'].iloc[i])
 			
