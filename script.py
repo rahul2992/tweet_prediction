@@ -5,9 +5,9 @@ from scipy.optimize import curve_fit
 from scipy.stats import expon
 from operator import itemgetter
 
-def load_train():
-	file = "new_gruber_tweets.json"
+def load_train(file):
 	tweetdata = pd.read_json(file)
+	print "Loading training data..."
 	return tweetdata
 	
 def fit_func(x,a,b,c):
@@ -17,10 +17,9 @@ def intertweet(tweetdata):
 	tweet_time = []
 	for time in tweetdata['created_at']:
 		tweet_time.append(time)
-	tweet_time.sort()
 	
 	time_dif = []
-	for i in xrange(1, len(tweet_time) - 1):
+	for i in xrange(1, len(tweet_time)):
 		temp = (tweet_time[i] - tweet_time[i - 1]).seconds
 		time_dif.append(temp)
 		time_df = pd.Series(time_dif)
@@ -40,37 +39,21 @@ def error_func(fitParams, division, time_dif):
 	exp_diff_df = pd.Series(exp_diff)
 	return exp_diff, exp_diff_df
 	
+def tweet_length(tweetdata):
+	tweet_length = len(tweetdata['text'])
+	return tweet_length
 	
-if __name__ == '__main__':
-	######Exponential fit exploration
-	tweetdata = load_train()
-	tweetdata['created_at'] = pd.to_datetime(tweetdata['created_at'])
-	
-	time_df, time_dif = intertweet(tweetdata)
-	time_df.hist(bins = 30, normed = True)
-	#plt.show()
-	
-	count, division = np.histogram(time_dif, bins = 100, normed = True)
-	fitParams, fitCov = curve_fit(fit_func, division[0:len(division)-1], count, p0=[0, 3e-4, 0])
-	
-	exp_diff, exp_diff_df = error_func(fitParams, division, time_dif)
-	
-	exp_diff_df.hist(bins = 100, normed = True, color = 'blue')
-	#plt.show()
-	
-	###### Checking variance in dataset
-	#Divide intertweet time into delta t and time to tweet
-	
+def split_intertweet(time_df, div):
 	timedata = []
-	div = 10
-	for t in time_dif:
+	for t in time_df:
 		elapsed = np.arange(0, t, div)
 		for t_elaps in elapsed:
 			waiting = t - t_elaps
 			t_sign = [t_elaps, waiting]
 			timedata.append(t_sign)
-	timedata = sorted(timedata, key = itemgetter(0)) 
+	return timedata
 	
+def t_var_analysis(timedata):
 	t_0,t_10,t_20,t_30,t_40,t_50,t_60,t_70,t_80,t_90,t_100 = ([] for i in range(11))
 	for t in timedata:
 		if (t[0] == 0):
@@ -97,7 +80,6 @@ if __name__ == '__main__':
 			t_100.append(t[1])		
 
 	t_0_100 = [t_10, t_20, t_30, t_40, t_50, t_60, t_70, t_80, t_90, t_100]
-	#print t_0_100
 	t_std = []
 	t_mean = []
 	t_div = np.arange(0, 100, 10)
@@ -111,8 +93,84 @@ if __name__ == '__main__':
 	
 	t_comb = pd.concat([t_div, t_mean, t_std], axis = 1)
 	t_comb.columns = [ 'elapsed', 'mean', 'standard_dev']
-	print t_comb
 	
+	return t_comb
+
+	
+if __name__ == '__main__':
+	######Exponential fit exploration
+	file = "new_gruber_tweets.json"
+	file_2 = "new_arment_tweets.json"
+	file_3 = "new_siracusa_tweets.json"
+	tweetdata = load_train(file)
+	tweetdata_a = load_train(file_2)
+	tweetdata_s = load_train(file_3)
+
+	tweetdata['created_at'] = pd.to_datetime(tweetdata['created_at'])
+	tweetdata.sort_values(by = 'created_at', ascending = 1, inplace = True)
+	tweetdata.reset_index(drop = True, inplace = True)
+	tweetdata_a['created_at'] = pd.to_datetime(tweetdata_a['created_at'])
+	tweetdata_a.sort_values(by = 'created_at', ascending = 1, inplace = True)
+	tweetdata_a.reset_index(drop = True, inplace = True)
+	tweetdata_s['created_at'] = pd.to_datetime(tweetdata_s['created_at'])
+	tweetdata_s.sort_values(by = 'created_at', ascending = 1, inplace = True)
+	tweetdata_s.reset_index(drop = True, inplace = True)
+
+	
+	time_df, time_dif = intertweet(tweetdata)
+	#time_df_a, time_dif_a = intertweet(tweetdata_a)
+	#time_df_s, time_dif_s = intertweet(tweetdata_s)
+	
+	#time_df.hist(bins = 30, normed = True)
+	#plt.show()
+	
+	#count, division = np.histogram(time_dif, bins = 100, normed = True)
+	#fitParams, fitCov = curve_fit(fit_func, division[0:len(division)-1], count, p0=[0, 3e-4, 0])
+	
+	#exp_diff, exp_diff_df = error_func(fitParams, division, time_dif)
+	
+	#exp_diff_df.hist(bins = 100, normed = True, color = 'blue')
+	#plt.show()
+	
+	###### Checking variance in dataset
+	#Divide intertweet time into delta t and time to tweet
+	#timedata = split_intertweet(time_df, div = 10)
+	#timedata = sorted(timedata, key = itemgetter(0))
+	#t_variance = t_var_analysis(timedata)
+	#print t_variance
+	
+	armentMentions = []
+	siracusaMentions = []
+	
+	div = 10
+	i = 0
+	
+	tweet_length = tweet_length(tweetdata)
+	tweet_length = pd.Series(data = tweet_length)
+	
+	tweet_len = []
+	t_elaps = []
+	y = []
+
+	#print time_df.size
+	#print tweetdata['created_at'].size
+	iterlength = len(tweetdata)
+	for i in range(0, iterlength - 1):
+		t_elapsedlist = np.arange(0, time_df.iloc[i], div)
+		for t in t_elapsedlist:
+			#Add feature 1 - elapsed time
+			t_elaps.append(t)
+	#		#Add feature 2 - Length of last tweet
+	#		#Add label
+	#		y_temp = time_df.iloc[i] - t_elaps
+	#		y.append(y_temp)
+			
+	#		tweet_len.append(tweetdata['tweet_length'].iloc[i])
+			
+	#print ta
+			
+	 
+		
 	
 			
 	
