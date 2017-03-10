@@ -121,8 +121,8 @@ if __name__ == '__main__':
 
 	
 	time_df, time_dif = intertweet(tweetdata)
-	#time_df_a, time_dif_a = intertweet(tweetdata_a)
-	#time_df_s, time_dif_s = intertweet(tweetdata_s)
+	time_df_a, time_dif_a = intertweet(tweetdata_a)
+	time_df_s, time_dif_s = intertweet(tweetdata_s)
 	
 	#time_df.hist(bins = 30, normed = True)
 	#plt.show()
@@ -145,18 +145,51 @@ if __name__ == '__main__':
 	armentMentions = []
 	siracusaMentions = []
 	
-	div = 10
-	i = 0
 	
+	#Length of tweets
 	tweet_ln = tweet_length(tweetdata)
 	tweet_ln = pd.Series(data = tweet_ln)
+	
+	#print tweetdata_a['user_mentions'].iloc[3]
+	#print tweetdata['user'].iloc[0]
+	#Mention distance of tweets 
+	for i in xrange(0, len(tweetdata_a)):
+		tmp = tweetdata_a['user_mentions'].iloc[i]
+		tmp_time = tweetdata_a['created_at'].iloc[i]
+		if (type(tmp) == list):
+			for mention in tmp:
+				if (mention['name'] == 'John Gruber'):
+					armentMentions.append(tmp_time)
+					
+	for i in xrange(0, len(tweetdata_s)):
+		tmp = tweetdata_s['user_mentions'].iloc[i]
+		tmp_time = tweetdata_s['created_at'].iloc[i]
+		if (type(tmp) == list):
+			for mention in tmp:
+				if (mention['name'] == 'John Gruber'):
+					siracusaMentions.append(tmp_time)
 
-	
-	
+	tdist_arment = []
+	tdist_siracusa = []
+	mention_dist = []
+					
+	for time in tweetdata['created_at']:
+		tdist_arment[:] = [men_t - time for men_t in armentMentions]
+		tmin_a = min(tdist_arment)
+		tdist_siracusa[:] = [men_t - time for men_t in siracusaMentions]
+		tmin_s = min(tdist_siracusa)
+		
+		if (tmin_a < tmin_s):
+			mention_dist.append((tmin_a, 'arment'))
+			
+		elif (tmin_a > tmin_s):
+			mention_dist.append((tmin_s, 'siracusa'))
+				
 	tweet_len = []
 	t_elaps = []
 	y = []
-
+	div = 10
+	i = 0
 	#print time_df.size
 	#print tweetdata['created_at'].size
 	num_tweets = len(tweetdata)
@@ -169,16 +202,18 @@ if __name__ == '__main__':
 		for t in t_elapsedlist:
 			#Add feature 1 - elapsed time
 			t_elaps.append(t)
-	#		#Add feature 2 - Length of last tweet
+			
+			#Add feature 2 - Length of last tweet
 			tweet_len.append(tweet_ln_temp)
-	#		#Add label
+			
+			#Add feature 3 - Last mention person
+			
+			#Add feature 4 - Last mention time
+			
+			#Add label
 			y_temp = tweet_tm - t
 			y.append(y_temp)
-			
-	#		tweet_len.append(tweetdata['tweet_length'].iloc[i])
-			
-	#print ta
-			
+						
 	 
 		
 	
