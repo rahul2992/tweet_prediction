@@ -6,6 +6,8 @@ from scipy.stats import expon
 from operator import itemgetter
 import math
 import datetime
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.model_selection import train_test_split
 
 def load_train(file):
 	tweetdata = pd.read_json(file)
@@ -192,8 +194,8 @@ if __name__ == '__main__':
 	num_tweets = len(tweetdata)
 	#print num_tweets
 	#print time_df.size
-	print len(armentMentions)
-	print len(siracusaMentions)
+	#print len(armentMentions)
+	#print len(siracusaMentions)
 	for i in xrange(0, num_tweets - 1):
 		#print i
 		#Iterates from 0 - 3232; Drops the last tweet value
@@ -216,12 +218,10 @@ if __name__ == '__main__':
 			y_temp = tweet_tm - t
 			y.append(y_temp)
 			
-			#Add feature 3 - Last mention person
+			#Add feature 3,4 - Last mention person and distance
 			t = datetime.timedelta(seconds = t)
 			t_abs = t + tweet_time_tmp
-			#print t_abs
 			
-			#test.append(t_abs)
 			for j in xrange(0, len(armentMentions)):
 				if (j < len(armentMentions) - 2):
 					tmp_0 = abs(t_abs - armentMentions[j])
@@ -258,49 +258,42 @@ if __name__ == '__main__':
 						mention_dist_siracusa.append(tmp_1)
 						break
 						
-			#tdist_arment[:] = [men_t - t_abs for men_t in armentMentions]
-			#tdist_arment = map(abs, tdist_arment)
-			#tmin_a = min(tdist_arment)
-			#print tmin_a
-			
-			#tdist_siracusa[:] = [men_t - t_abs for men_t in siracusaMentions]
-			#tdist_siracusa = map(abs, tdist_siracusa)
-			#tmin_s = min(tdist_siracusa)
-			
-		
-			#if (tmin_a < tmin_s):
-			#	mention_dist.append((tmin_a, 'arment'))
-			
-			#elif (tmin_a > tmin_s):
-			#	mention_dist.append((tmin_s, 'siracusa'))
-			
-			#mention_name.append(mention_p_temp)
-			
-			#Add feature 4 - Last mention time
-			#mention_d.append(mention_d_temp)
-			
-			
-	#print len(test)
-	
-	
-	#mention_dist = pd.DataFrame(mention_dist, columns = ['distance', 'person'])
-	#print mention_dist.tail(5)
-	#print mention_dist.shape
-	
-	print len(mention_dist_siracusa)
-	print len(mention_dist_arment)
-	print len(t_elaps)
-	print len(tweet_len)
 	X = pd.DataFrame({'elapsed_time': t_elaps,
 					  'last_tweet_length': tweet_len,
 					  'mention_dist_arment' : mention_dist_arment,
 					  'mention_dist_siracusa': mention_dist_siracusa
 					 })
 	
-	Y = pd.Series(y)
+	X['closest_mention'] = np.where(X['mention_dist_arment']<X['mention_dist_siracusa'], X['mention_dist_arment'], X['mention_dist_siracusa'])
+	X['mention_person'] = np.where(X['mention_dist_arment']<X['mention_dist_siracusa'], 'arment', 'siracrusa')
+	X = X.drop('mention_dist_siracusa', axis = 1)
+	X = X.drop('mention_dist_arment', axis = 1)
+	X['arment_mentions'] = np.where(X['mention_person'] == 'arment', 1, 0)
+	X['siracusa_mentions'] = np.where(X['mention_person'] == 'siracusa', 1, 0)
+	X = X.drop('mention_person', axis = 1)
+
+	mention_seconds = []
+	for time in X['closest_mention']:
+		mention_seconds.append(time.seconds)
+	mention_seconds = pd.Series(mention_seconds)
+	X = pd.concat([X,mention_seconds], axis = 1)
+	X = X.rename(columns = {0: 'mention_dist_sec'})
+	X = X.drop('closest_mention', axis = 1)
 	
-	#X.to_csv('X.csv', sep=',', index = False)
-	#Y.to_csv('Y.csv', sep=',', index = False)
-	print X.head(5)
-	print Y.head(5)		
+	Y = pd.Series(y)
+	#print X.head(5)
+	#print Y.head(5)	
+	
+	#Splitting dataset and training KNN 
+	test_size = 0.3
+	seed = 7
+	X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size = test_size, random_state = seed)	
+	
+	X_train_n = np.asarray(X_train, dtype = 'int')
+	Y_train_n = np.asarray(Y_train, dtype = 'int')
+	X_val_n = np.asarray(X_val, dtype = 'int')
+	Y_val_n = np.asarray(Y_val, dtype = 'int')
+	
+	
+		
 						
