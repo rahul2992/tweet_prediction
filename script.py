@@ -103,30 +103,68 @@ def t_var_analysis(timedata):
 	
 	return t_comb
 
+def sort_tweettimes(tweetdata):
+	tweetdata['created_at'] = pd.to_datetime(tweetdata['created_at'])
+	tweetdata.sort_values(by = 'created_at', ascending = 1, inplace = True)
+	tweetdata.reset_index(drop = True, inplace = True)
+	return tweetdata
+	
+def mentionfinder(tweetdata):
+	personMentions = []
+	for i in xrange(0, len(tweetdata)):
+		tmp = tweetdata['user_mentions'].iloc[i]
+		tmp_time = tweetdata['created_at'].iloc[i]
+		if (type(tmp) == list):
+			for mention in tmp:
+				if (mention['name'] == 'John Gruber'):
+					personMentions.append(tmp_time)
+	return personMentions
+	
+def cleanup(X):
+	#Find closest mention person
+	X['closest_mention'] = np.where(X['mention_dist_arment']<X['mention_dist_siracusa'], X['mention_dist_arment'], X['mention_dist_siracusa'])
+	#Create column for mention person
+	X['mention_person'] = np.where(X['mention_dist_arment']<X['mention_dist_siracusa'], 'arment', 'siracrusa')
+	#drop other mention distances
+	X = X.drop('mention_dist_siracusa', axis = 1)
+	X = X.drop('mention_dist_arment', axis = 1)
+	#Binarize labels for people
+	X['arment_mentions'] = np.where(X['mention_person'] == 'arment', 1, 0)
+	X['siracusa_mentions'] = np.where(X['mention_person'] == 'siracusa', 1, 0)
+	#Drop mention person
+	X = X.drop('mention_person', axis = 1)
+	#Convert closest mention to seconds
+	mention_seconds = []
+	for time in X['closest_mention']:
+		mention_seconds.append(time.seconds)
+	mention_seconds = pd.Series(mention_seconds)
+	X = pd.concat([X,mention_seconds], axis = 1)
+	X = X.rename(columns = {0: 'mention_dist_sec'})
+	#Drop closest mention timestamp
+	X = X.drop('closest_mention', axis = 1)
+	
+	return X
 	
 if __name__ == '__main__':
-	######Exponential fit exploration
+	######Load data
 	file = "new_gruber_tweets.json"
 	file_2 = "new_arment_tweets.json"
 	file_3 = "new_siracusa_tweets.json"
 	tweetdata = load_train(file)
 	tweetdata_a = load_train(file_2)
 	tweetdata_s = load_train(file_3)
-
-	tweetdata['created_at'] = pd.to_datetime(tweetdata['created_at'])
-	tweetdata.sort_values(by = 'created_at', ascending = 1, inplace = True)
-	tweetdata.reset_index(drop = True, inplace = True)
-	tweetdata_a['created_at'] = pd.to_datetime(tweetdata_a['created_at'])
-	tweetdata_a.sort_values(by = 'created_at', ascending = 1, inplace = True)
-	tweetdata_a.reset_index(drop = True, inplace = True)
-	tweetdata_s['created_at'] = pd.to_datetime(tweetdata_s['created_at'])
-	tweetdata_s.sort_values(by = 'created_at', ascending = 1, inplace = True)
-	tweetdata_s.reset_index(drop = True, inplace = True)
-
 	
+	#Sort wrt times in ascending order and reindex
+	tweetdata = sort_tweettimes(tweetdata)
+	tweetdata_a = sort_tweettimes(tweetdata_a)
+	tweetdata_s = sort_tweettimes(tweetdata_s)
+	print "Data sorted in ascending order by tweet time"
+
+	#Calculate intertweet times
 	time_df, time_dif = intertweet(tweetdata)
 	time_df_a, time_dif_a = intertweet(tweetdata_a)
 	time_df_s, time_dif_s = intertweet(tweetdata_s)
+	print "Calculated intertweet times for the data"
 	
 	#time_df.hist(bins = 30, normed = True)
 	#plt.show()
@@ -146,65 +184,37 @@ if __name__ == '__main__':
 	#t_variance = t_var_analysis(timedata)
 	#print t_variance
 	
-	armentMentions = []
-	siracusaMentions = []
-	
-	
 	#Length of tweets
 	tweet_ln = tweet_length(tweetdata)
 	tweet_ln = pd.Series(data = tweet_ln)
+	print "Found last tweet lengths"
 	
-	#print tweetdata_a['user_mentions'].iloc[3]
-	#print tweetdata['user'].iloc[0]
-	#Mention distance of tweets 
-	#Define a time reference  
-	time_ref = tweetdata['created_at'].iloc[0]
+	#Lists to capture arment and siracusa mentions
+	armentMentions, siracusaMentions = [], []	
 	
-	for i in xrange(0, len(tweetdata_a)):
-		tmp = tweetdata_a['user_mentions'].iloc[i]
-		tmp_time = tweetdata_a['created_at'].iloc[i]
-		if (type(tmp) == list):
-			for mention in tmp:
-				if (mention['name'] == 'John Gruber'):
-					armentMentions.append(tmp_time)
-					
-	for i in xrange(0, len(tweetdata_s)):
-		tmp = tweetdata_s['user_mentions'].iloc[i]
-		tmp_time = tweetdata_s['created_at'].iloc[i] 
-		if (type(tmp) == list):
-			for mention in tmp:
-				if (mention['name'] == 'John Gruber'):
-					siracusaMentions.append(tmp_time)
-	tdist_arment = []
-	tdist_siracusa = []
-	mention_dist = []
-	mention_dist_arment = []
-	mention_dist_siracusa = []
+	#Mentions by arment
+	armentMentions = mentionfinder(tweetdata_a)
+	print "Found when Arment mentions Grubber"
+	#Mentions by siracusa  
+	siracusaMentions = mentionfinder(tweetdata_s) 
+	print "Found when Siracusa mentions Grubber"
 	
-	test = []					
-	mention_name = []
-	mention_d = []
-	tweet_len = []
-	t_elaps = []
-	y = []
-	div = 10
+	
+	mention_dist_arment, mention_dist_siracusa = [], []
+	
+	#Lists for features and y label
+	tweet_len, t_elaps, y = [], [], []
+	div = 1000
 	i = 0
-	#print time_df.size
-	#print tweetdata['created_at'].size
+
 	num_tweets = len(tweetdata)
-	#print num_tweets
-	#print time_df.size
-	#print len(armentMentions)
-	#print len(siracusaMentions)
+	print "Subdividing each intertweet times in steps of %d. The smaller the time the more time it takes..." %div
+	
 	for i in xrange(0, num_tweets - 1):
-		#print i
 		#Iterates from 0 - 3232; Drops the last tweet value
 		tweet_tm = time_df.iloc[i]
 		tweet_ln_temp = tweet_ln.iloc[i]
-		#mention_d_temp = mention_dist['distance'].iloc[i]
-		#mention_p_temp = mention_dist['person'].iloc[i]
 		tweet_time_tmp = tweetdata['created_at'].iloc[i] 
-		#print "t1:", tweet_time_tmp
 		t_elapsedlist = np.arange(0, tweet_tm, div)
 		for t in t_elapsedlist:
 			#Add feature 1 - elapsed time
@@ -263,31 +273,21 @@ if __name__ == '__main__':
 					  'mention_dist_arment' : mention_dist_arment,
 					  'mention_dist_siracusa': mention_dist_siracusa
 					 })
+	print "Created dataframe of input data with %s, %s, %s, %s)" %("elapsed_time", "last tweet length", "arment mention distance", "siracusa mention distance")
 	
-	X['closest_mention'] = np.where(X['mention_dist_arment']<X['mention_dist_siracusa'], X['mention_dist_arment'], X['mention_dist_siracusa'])
-	X['mention_person'] = np.where(X['mention_dist_arment']<X['mention_dist_siracusa'], 'arment', 'siracrusa')
-	X = X.drop('mention_dist_siracusa', axis = 1)
-	X = X.drop('mention_dist_arment', axis = 1)
-	X['arment_mentions'] = np.where(X['mention_person'] == 'arment', 1, 0)
-	X['siracusa_mentions'] = np.where(X['mention_person'] == 'siracusa', 1, 0)
-	X = X.drop('mention_person', axis = 1)
-
-	mention_seconds = []
-	for time in X['closest_mention']:
-		mention_seconds.append(time.seconds)
-	mention_seconds = pd.Series(mention_seconds)
-	X = pd.concat([X,mention_seconds], axis = 1)
-	X = X.rename(columns = {0: 'mention_dist_sec'})
-	X = X.drop('closest_mention', axis = 1)
-	
+	X = cleanup(X)	
 	Y = pd.Series(y)
-	#print X.head(5)
-	#print Y.head(5)	
+	
+	print "X top 5 entries" 
+	print X.head(5)
+	print "Y top 5 entries"
+	print Y.head(5)	
 	
 	#Splitting dataset and training KNN 
 	test_size = 0.3
 	seed = 7
 	X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size = test_size, random_state = seed)	
+	print "Data set split into test and train with test size %f" %test_size
 	
 	X_train_n = np.asarray(X_train, dtype = 'int')
 	Y_train_n = np.asarray(Y_train, dtype = 'int')
@@ -314,19 +314,5 @@ if __name__ == '__main__':
 	
 	print pd.Series([math.fabs(x) for x in train_diffs]).describe()
 	print pd.Series([math.fabs(x) for x in val_diffs]).describe()
-	
-	#Y_predict_val = pd.Series(Y_predict_val)
-	#Y_predict_train = pd.Series(Y_predict_train)
-	
-	#error_train = Y_predict_train - Y_train
-	#error_val =  Y_predict_val - Y_val
-	
-	
-	#print error_train
-	#print "Train error", errorlist_train.describe()
-	#print "Validation error", error_val
-	
-	
-	
 		
 						
