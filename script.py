@@ -187,7 +187,7 @@ if __name__ == '__main__':
 	tweet_len = []
 	t_elaps = []
 	y = []
-	div = 1000
+	div = 10
 	i = 0
 	#print time_df.size
 	#print tweetdata['created_at'].size
@@ -293,6 +293,39 @@ if __name__ == '__main__':
 	Y_train_n = np.asarray(Y_train, dtype = 'int')
 	X_val_n = np.asarray(X_val, dtype = 'int')
 	Y_val_n = np.asarray(Y_val, dtype = 'int')
+	
+	neigh = 3
+	print "Creating a KNN classifier with knn = %d" %neigh
+	knn_classifier = KNeighborsRegressor(neigh)
+	print "Fitting data to KNN classifier"
+	knn_classifier.fit(X_train_n, Y_train_n)
+	print "Predicting on validation set"
+	Y_predict_val = knn_classifier.predict(X_val_n)
+	print "Checking performance on train set"
+	Y_predict_train = knn_classifier.predict(X_train_n)
+	
+	train_diffs = []
+	val_diffs = []
+	for i in xrange(len(Y_train_n)):
+		train_diffs.append(Y_train_n[i] - Y_predict_train[i])
+        
+	for i in xrange(len(Y_val_n)):
+		val_diffs.append(Y_val_n[i] - Y_predict_val[i])
+	
+	print pd.Series([math.fabs(x) for x in train_diffs]).describe()
+	print pd.Series([math.fabs(x) for x in val_diffs]).describe()
+	
+	#Y_predict_val = pd.Series(Y_predict_val)
+	#Y_predict_train = pd.Series(Y_predict_train)
+	
+	#error_train = Y_predict_train - Y_train
+	#error_val =  Y_predict_val - Y_val
+	
+	
+	#print error_train
+	#print "Train error", errorlist_train.describe()
+	#print "Validation error", error_val
+	
 	
 	
 		
