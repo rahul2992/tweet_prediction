@@ -5,6 +5,7 @@ from scipy.optimize import curve_fit
 from scipy.stats import expon
 from operator import itemgetter
 import math
+import datetime
 
 def load_train(file):
 	tweetdata = pd.read_json(file)
@@ -154,6 +155,9 @@ if __name__ == '__main__':
 	#print tweetdata_a['user_mentions'].iloc[3]
 	#print tweetdata['user'].iloc[0]
 	#Mention distance of tweets 
+	#Define a time reference  
+	time_ref = tweetdata['created_at'].iloc[0]
+	
 	for i in xrange(0, len(tweetdata_a)):
 		tmp = tweetdata_a['user_mentions'].iloc[i]
 		tmp_time = tweetdata_a['created_at'].iloc[i]
@@ -164,7 +168,7 @@ if __name__ == '__main__':
 					
 	for i in xrange(0, len(tweetdata_s)):
 		tmp = tweetdata_s['user_mentions'].iloc[i]
-		tmp_time = tweetdata_s['created_at'].iloc[i]
+		tmp_time = tweetdata_s['created_at'].iloc[i] 
 		if (type(tmp) == list):
 			for mention in tmp:
 				if (mention['name'] == 'John Gruber'):
@@ -172,65 +176,131 @@ if __name__ == '__main__':
 	tdist_arment = []
 	tdist_siracusa = []
 	mention_dist = []
-					
-	for time in tweetdata['created_at']:
-		tdist_arment[:] = [men_t - time for men_t in armentMentions]
-		tdist_arment = map(abs, tdist_arment)
-		tmin_a = min(tdist_arment)
-		tdist_siracusa[:] = [men_t - time for men_t in siracusaMentions]
-		tdist_siracusa = map(abs, tdist_siracusa)
-		tmin_s = min(tdist_siracusa)
-		
-		
-		if (tmin_a < tmin_s):
-			mention_dist.append((tmin_a, 'arment'))
-			
-		elif (tmin_a > tmin_s):
-			mention_dist.append((tmin_s, 'siracusa'))
+	mention_dist_arment = []
+	mention_dist_siracusa = []
 	
-	mention_dist = pd.DataFrame(mention_dist, columns = ['distance', 'person'])
+	test = []					
 	mention_name = []
 	mention_d = []
 	tweet_len = []
 	t_elaps = []
 	y = []
-	div = 10
+	div = 1000
 	i = 0
 	#print time_df.size
 	#print tweetdata['created_at'].size
 	num_tweets = len(tweetdata)
 	#print num_tweets
 	#print time_df.size
+	print len(armentMentions)
+	print len(siracusaMentions)
 	for i in xrange(0, num_tweets - 1):
+		#print i
+		#Iterates from 0 - 3232; Drops the last tweet value
 		tweet_tm = time_df.iloc[i]
 		tweet_ln_temp = tweet_ln.iloc[i]
-		mention_d_temp = mention_dist['distance'].iloc[i]
-		mention_p_temp = mention_dist['person'].iloc[i]
+		#mention_d_temp = mention_dist['distance'].iloc[i]
+		#mention_p_temp = mention_dist['person'].iloc[i]
+		tweet_time_tmp = tweetdata['created_at'].iloc[i] 
+		#print "t1:", tweet_time_tmp
 		t_elapsedlist = np.arange(0, tweet_tm, div)
 		for t in t_elapsedlist:
 			#Add feature 1 - elapsed time
 			t_elaps.append(t)
+			#print "t:", t
 			
 			#Add feature 2 - Length of last tweet
 			tweet_len.append(tweet_ln_temp)
-			
-			#Add feature 3 - Last mention person
-			mention_name.append(mention_p_temp)
-			
-			#Add feature 4 - Last mention time
-			mention_d.append(mention_d_temp)
 			
 			#Add label
 			y_temp = tweet_tm - t
 			y.append(y_temp)
 			
+			#Add feature 3 - Last mention person
+			t = datetime.timedelta(seconds = t)
+			t_abs = t + tweet_time_tmp
+			#print t_abs
 			
+			#test.append(t_abs)
+			for j in xrange(0, len(armentMentions)):
+				if (j < len(armentMentions) - 2):
+					tmp_0 = abs(t_abs - armentMentions[j])
+					tmp_1 = abs(t_abs - armentMentions[j+1])
+					tmp_2 = abs(t_abs - armentMentions[j+2])
+					if ((tmp_1<tmp_0) & (tmp_1<tmp_2)):
+						mention_dist_arment.append(tmp_1)
+						break
+					elif ((tmp_0<tmp_1) & (tmp_0<tmp_2)):
+						mention_dist_arment.append(tmp_0)
+						break 
+				elif (j == (len(armentMentions) - 2)):
+					tmp_0 = abs(t_abs - armentMentions[j])
+					tmp_1 = abs(t_abs - armentMentions[j+1])
+					if (tmp_1<tmp_0):
+						mention_dist_arment.append(tmp_1)
+						break
+					
+			for j in xrange(0, len(siracusaMentions)):
+				if (j < len(siracusaMentions) - 2):
+					tmp_0 = abs(t_abs - siracusaMentions[j])
+					tmp_1 = abs(t_abs - siracusaMentions[j+1])
+					tmp_2 = abs(t_abs - siracusaMentions[j+2])
+					if ((tmp_1<tmp_0) & (tmp_1<tmp_2)):
+						mention_dist_siracusa.append(tmp_1)
+						break
+					elif ((tmp_0<tmp_1) & (tmp_0<tmp_2)):
+						mention_dist_siracusa.append(tmp_0)
+						break
+				elif (j == (len(siracusaMentions) - 2)):
+					tmp_0 = abs(t_abs - siracusaMentions[j])
+					tmp_1 = abs(t_abs - siracusaMentions[j+1])
+					if (tmp_1<tmp_0):
+						mention_dist_siracusa.append(tmp_1)
+						break
 						
-	 
-		
-	
+			#tdist_arment[:] = [men_t - t_abs for men_t in armentMentions]
+			#tdist_arment = map(abs, tdist_arment)
+			#tmin_a = min(tdist_arment)
+			#print tmin_a
 			
-	
+			#tdist_siracusa[:] = [men_t - t_abs for men_t in siracusaMentions]
+			#tdist_siracusa = map(abs, tdist_siracusa)
+			#tmin_s = min(tdist_siracusa)
 			
-	
 		
+			#if (tmin_a < tmin_s):
+			#	mention_dist.append((tmin_a, 'arment'))
+			
+			#elif (tmin_a > tmin_s):
+			#	mention_dist.append((tmin_s, 'siracusa'))
+			
+			#mention_name.append(mention_p_temp)
+			
+			#Add feature 4 - Last mention time
+			#mention_d.append(mention_d_temp)
+			
+			
+	#print len(test)
+	
+	
+	#mention_dist = pd.DataFrame(mention_dist, columns = ['distance', 'person'])
+	#print mention_dist.tail(5)
+	#print mention_dist.shape
+	
+	print len(mention_dist_siracusa)
+	print len(mention_dist_arment)
+	print len(t_elaps)
+	print len(tweet_len)
+	X = pd.DataFrame({'elapsed_time': t_elaps,
+					  'last_tweet_length': tweet_len,
+					  'mention_dist_arment' : mention_dist_arment,
+					  'mention_dist_siracusa': mention_dist_siracusa
+					 })
+	
+	Y = pd.Series(y)
+	
+	#X.to_csv('X.csv', sep=',', index = False)
+	#Y.to_csv('Y.csv', sep=',', index = False)
+	print X.head(5)
+	print Y.head(5)		
+						
